@@ -3,7 +3,11 @@ import requests
 import json
 import pyppeteer
 import asyncio
+import hashtable
 #   /home/cyst/jetTools/apps/PyCharm-P/ch-0/202.6397.98/plugins/python/helpers/pydev:/home/cyst/jetTools/apps/PyCharm-P/ch-0/202.6397.98/plugins/python/helpers/pydev:/home/cyst/jetTools/apps/PyCharm-P/ch-0/202.6397.98/plugins/python/helpers/pycharm_display:/home/cyst/jetTools/apps/PyCharm-P/ch-0/202.6397.98/plugins/python/helpers/third_party/thriftpy:/usr/lib/python38.zip:/usr/lib/python3.8:/usr/lib/python3.8/lib-dynload:/home/cyst/PycharmProjects/pythonProject/venv/lib/python3.8/site-packages:/home/cyst/jetTools/apps/PyCharm-P/ch-0/202.6397.98/plugins/python/helpers/pycharm_matplotlib_backend:/home/cyst/PycharmProjects/pythonProject:/home/cyst/bountyhunter/venv/lib/python3.8/site-packages:/home/cyst/bountyhunter
+# Since hackerone is a Single-page application (damn hispters), we'll need to execute JS on pages to get the data
+# necessary. In order to do that, we use pyppeteer - a library that allows us to run a headless version of Chromium
+# and control it through code.
 
 
 def print_scope(scopes):
@@ -15,6 +19,20 @@ def print_scope(scopes):
 
 
 async def look_for_scope(handle):
+    """
+    Parses the page of a bug bounty program. Returns all of its domain-type assets in three groups: eligible or
+    ineligible for award or out of scope, along with some other data.
+
+    :param handle: name of a program, defines url of its page (located at https://hackerone.com/"HANDLE"?type=team)
+    :return: curr_handle: the program name |
+             eligible_domains:  reward-eligible domains; |
+             ineligible_domains; |
+             out_scope: out-of-scope domains that mustn't be tested; |
+             offers_bounties: boolean, whether the program pays for bugs; |
+             resolved_reports: number of resolved reports; |
+             avg_bounty: average reward for a valid bug
+    """
+    # We should REALLY make the browser run in sandbox. FIX THIS SHITE
     browser = await pyppeteer.launch(headless=True, args=['--no-sandbox'])
     page = await browser.newPage()
     await page.setViewport({'width': 1912, 'height': 933})
@@ -38,9 +56,9 @@ async def look_for_scope(handle):
     resolved_reports_pattern = re.compile('(Reports resolved[ \n\t:-]*)([0-9]*)')
     avg_bounty_pattern = re.compile('(Average bounty[ \n\t:-]*)([$kK0-9-]*)')
 
-    avg_bounty = avg_bounty_pattern.search(inner_text)  # .groups()[1]
+    avg_bounty = avg_bounty_pattern.search(inner_text)
     avg_bounty = 'N/A' if avg_bounty is None else avg_bounty.groups()[1]
-    resolved_reports = resolved_reports_pattern.search(inner_text)  # .groups()[1]
+    resolved_reports = resolved_reports_pattern.search(inner_text)
     resolved_reports = 'N/A' if resolved_reports is None else resolved_reports.groups()[1]
     out_of_scope = out_of_scope_pattern.findall(inner_text)
     domains = domains_pattern.findall(inner_text)
@@ -92,6 +110,9 @@ program_counter = 0
 for placeholdObj in bountiespage['results']:
     bounty_object['curr_handle'] = placeholdObj['handle']
     scraped_programs.append(asyncio.get_event_loop().run_until_complete(look_for_scope(bounty_object['curr_handle'])))
+    print(scraped_programs[program_counter])
+    fuck = hashtable.make_hash(scraped_programs[program_counter])
+    print(fuck)
     program_counter += 1
 
 print(scraped_programs)
