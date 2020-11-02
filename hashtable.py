@@ -22,7 +22,7 @@ def make_hash(bounty_object):
     """
     Generates a hash from all assets of a program. This is used to save some database queries. Hash table of such hashes
     is not stored in db. If the script detects that the program's hash is different from the one generated previously,
-    only then will it access the db to further investigate the changes.
+    only then will it access the db to further investigate the changes
 
     :param bounty_object: dict, keys are: {
             curr_handle: ' ',

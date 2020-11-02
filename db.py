@@ -19,7 +19,7 @@ def connect():
     connection = None
     try:
         params = config()
-        print('Connecting to PostgreSQL database...')
+        print('Connecting to PostgreSQL database....')
         connection = psycopg2.connect(**params)
         cursor = connection.cursor()
         print('Postgres database version:')
