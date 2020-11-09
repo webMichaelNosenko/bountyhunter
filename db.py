@@ -50,37 +50,70 @@ def exec_sql(sql):
             connection.close()
 
 
+def fetch_all_results(sql):
+    connection = None
+    results = None
+    try:
+        params = config()
+        connection = psycopg2.connect(**params)
+        cursor = connection.cursor()
+        cursor.execute(sql)
+        results = cursor.fetchall()
+        cursor.close()
+        connection.commit()
+    except (Exception, psycopg2.DatabaseError) as error:
+        print(error)
+    finally:
+        if connection is not None:
+            connection.close()
+            return results
+
+
 def create_tables():
     commands = (
         """
-        CREATE TABLE IF NOT EXISTS bounty_programs (
-            handle varchar(45) PRIMARY KEY,
-            offers_bounties BOOLEAN,
-            resolved_reports INTEGER, 
-            avg_bounty INTEGER
-        );
+            CREATE TABLE IF NOT EXISTS bounty_programs (
+                handle varchar(45) PRIMARY KEY,
+                offers_bounties BOOLEAN,
+                resolved_reports INTEGER, 
+                avg_bounty INTEGER
+            );
         """,
         """
-        CREATE TABLE IF NOT EXISTS domains (
-            asset_id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-            handle varchar(45) NOT NULL,
-            asset_value varchar(200),
-            asset_type varchar(20),
-            CONSTRAINT fk_handle
-                FOREIGN KEY(handle)
-                    REFERENCES bounty_programs(handle)
-                    ON DELETE CASCADE 
-        );
+            CREATE TABLE IF NOT EXISTS domains (
+                asset_id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+                handle varchar(45) NOT NULL,
+                asset_value varchar(200),
+                asset_type varchar(20),
+                CONSTRAINT fk_handle
+                    FOREIGN KEY(handle)
+                        REFERENCES bounty_programs(handle)
+                        ON DELETE CASCADE 
+            );
         """,
         """
-        CREATE TABLE IF NOT EXISTS hash_table (
-            handle varchar(45) PRIMARY KEY,
-            hash_value TEXT NOT NULL
-        );
+            CREATE TABLE IF NOT EXISTS hash_table (
+                handle varchar(45) PRIMARY KEY,
+                hash_value TEXT NOT NULL
+            );
         """
     )
     for command in commands:
         exec_sql(command)
+
+
+def get_hash_table():
+    commands = (
+        f"""
+            SELECT handle, hash_value FROM hash_table;
+        """
+    )
+    hash_table = {}
+    results = fetch_all_results(commands)
+    if len(results) != 0:
+        for hash_item in results:
+            hash_table[hash_item[0]] = hash_item[1]
+    return hash_table
 
 
 def insert_hash(handle, hash_value):
@@ -97,41 +130,92 @@ def insert_hash(handle, hash_value):
 def insert_new_program(bounty_object):
     commands = (
         f"""
-        INSERT INTO bounty_programs (handle, offers_bounties, resolved_reports, avg_bounty)
-        VALUES ('{bounty_object['handle']}', {bounty_object['offers_bounties']}, 
-        {bounty_object['resolved_reports']}, {bounty_object['avg_bounty']});
+            INSERT INTO bounty_programs (handle, offers_bounties, resolved_reports, avg_bounty)
+            VALUES ('{bounty_object['handle']}', {bounty_object['offers_bounties']}, 
+            {bounty_object['resolved_reports']}, {bounty_object['avg_bounty']});
         """
     )
     exec_sql(commands)
     return 1
 
 
-def add_asset(bounty_object, asset_value, asset_type):
+def insert_asset(bounty_object, asset_value, asset_type):
     commands = (
         f"""
             INSERT INTO domains (handle, asset_value, asset_type)
             VALUES ('{bounty_object['handle']}', '{asset_value}', 
             '{asset_type}');
-            """
+        """
     )
     exec_sql(commands)
     return 1
 
 
 def get_assets(bounty_object, asset_type):
-    return 1
+    commands = (
+        f"""
+            SELECT asset_value FROM domains 
+            WHERE handle='{bounty_object['handle']}' AND asset_type='{asset_type}'
+        """
+    )
+    results = fetch_all_results(commands)
+    return results
 
 
-def remove_asset(bounty_object):
+def delete_asset(bounty_object, asset_value, asset_type):
+    commands = (
+        f"""
+            DELETE FROM domains
+            WHERE handle='{bounty_object['handle']}' AND asset_value='{asset_value}' 
+            AND asset_type='{asset_type}'
+        """
+    )
+    exec_sql(commands)
     return 1
 
 
 def delete_program(bounty_object):
+    exec_sql(
+        f"""
+            DELETE FROM domains
+            WHERE handle='{bounty_object['handle']}';
+        """
+    )
+    delete_hash(bounty_object)
+    exec_sql(
+        f"""
+            DELETE FROM bounty_programs
+            WHERE handle='{bounty_object['handle']}';
+        """
+    )
     return 1
 
 
-def find_differences():
+def delete_hash(bounty_object):
+    commands = (
+        f"""
+            DELETE FROM hash_table 
+            WHERE handle='{bounty_object['handle']}'
+        """
+    )
+    exec_sql(commands)
     return 1
+
+
+def find_differences(bounty_object, asset_type):
+    changes = {
+        'to_add': [],
+        'to_remove': []
+    }
+    old_assets = get_assets(bounty_object, asset_type)
+    new_assets = bounty_object[asset_type]
+    for asset in new_assets:
+        if asset not in old_assets:
+            changes['to_add'].append(asset)
+    for asset in old_assets:
+        if asset not in new_assets:
+            changes['to_remove'].append(asset)
+    return changes
 
 
 if __name__ == '__main__':

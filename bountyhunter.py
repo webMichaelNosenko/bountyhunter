@@ -11,50 +11,76 @@ from fetcher import look_for_scope
 # and control it through code
 
 hackerone = 'https://hackerone.com/programs/search?query=bounties%3Ayes&sort=name%3Aascending&limit=1000'
-bounty_object = {
-    'handle': '',
-    'eligible_domains': [],
-    'ineligible_domains': [],
-    'out_scope': [],
-    'offers_bounties': '',
-    'resolved_reports': '',
-    'avg_bounty': ''
-}
-scraped_programs = []
-new_changes = []  # this will hold all the assets that have changed for the specific program
 
-db.create_tables()
 
-session = requests.Session()
-programlist = session.get(hackerone)
-bountiespage = json.loads(programlist.text)
+def main():
+    db.create_tables()
+    session = requests.Session()
+    programlist = session.get(hackerone)
+    bountiespage = json.loads(programlist.text)
+    scraped_programs = []
+    program_counter = 0
+    hashtable.hash_table = db.get_hash_table()
+    for placeholdObj in bountiespage['results']:
+        bounty_object = asyncio.run(look_for_scope(placeholdObj['handle']))
+        scraped_programs.append(bounty_object)
+        print(bounty_object)
+        new_hash = hashtable.make_hash(bounty_object)
+        check_res = hashtable.check_hash(bounty_object['handle'], new_hash)
+        print(new_hash)
+        if not check_res['new_program_added']:
+            print('Not a new program...')
+            if check_res['eligible_changed']:
+                print('*** Eligible domains changed!')
+                el_changes = db.find_differences(bounty_object, 'eligible_domains')
+                for change in el_changes['to_remove']:
+                    db.delete_asset(bounty_object, change, 'eligible')
+                    print('Asset ' + change + ' has been deleted!')
+                for change in el_changes['to_add']:
+                    db.insert_asset(bounty_object, change, 'eligible')
+                    print('Asset ' + change + 'has been added!')
 
-program_counter = 0
-for placeholdObj in bountiespage['results']:
-    bounty_object = asyncio.run(look_for_scope(placeholdObj['handle']))
-    scraped_programs.append(bounty_object)
-    print(bounty_object)
-    new_hash = hashtable.make_hash(bounty_object)
-    check_res = hashtable.check_hash(bounty_object['handle'], new_hash)
-    print(new_hash)
-    if not check_res['new_program_added']:
-        if check_res['eligible_changed']:
-            print(1)
-        if check_res['ineligible_changed']:
-            print(2)
-        if check_res['out_scope_changed']:
-            print(3)
-    else:
-        db.insert_new_program(bounty_object)
-        db.insert_hash(bounty_object['handle'], new_hash)
-        for asset in bounty_object['eligible_domains']:
-            db.add_asset(bounty_object, asset, 'eligible')
-        for asset in bounty_object['ineligible_domains']:
-            db.add_asset(bounty_object, asset, 'ineligible')
-        for asset in bounty_object['out_scope']:
-            db.add_asset(bounty_object, asset, 'out_scope')
-        print(4)
-    hashtable.push_hash(bounty_object['handle'], new_hash)
-    program_counter += 1
+            if check_res['ineligible_changed']:
+                print('*** Ineligible domains changed!')
+                inel_changes = db.find_differences(bounty_object, 'ineligible_domains')
+                for change in inel_changes['to_remove']:
+                    db.delete_asset(bounty_object, change, 'ineligible')
+                    print('Asset ' + change + 'has been deleted!')
+                for change in inel_changes['to_add']:
+                    db.insert_asset(bounty_object, change, 'ineligible')
+                    print('Asset ' + change + 'has been added!')
 
-print(scraped_programs)
+            if check_res['out_scope_changed']:
+                print('*** Out of scope domains changed!')
+                out_changes = db.find_differences(bounty_object, 'out_scope')
+                for change in out_changes['to_remove']:
+                    db.delete_asset(bounty_object, change, 'out_scope')
+                    print('Asset ' + change + 'has been deleted!')
+                for change in out_changes['to_add']:
+                    db.insert_asset(bounty_object, change, 'out_scope')
+                    print('Asset ' + change + 'has been added!')
+        else:
+            print('Adding a new program...')
+            db.insert_new_program(bounty_object)
+            db.insert_hash(bounty_object['handle'], new_hash)
+            for asset in bounty_object['eligible_domains']:
+                db.insert_asset(bounty_object, asset, 'eligible')
+                print('Eligible Asset ' + asset + 'has been added!')
+            for asset in bounty_object['ineligible_domains']:
+                db.insert_asset(bounty_object, asset, 'ineligible')
+                print('Ineligible Asset ' + asset + 'has been added!')
+            for asset in bounty_object['out_scope']:
+                db.insert_asset(bounty_object, asset, 'out_scope')
+                print('Out of Scope Asset ' + asset + 'has been added!')
+
+        hashtable.push_hash(bounty_object['handle'], new_hash)
+        print('Added the hash...')
+        program_counter += 1
+
+
+if __name__ == '__main__':
+    loop_count = 0
+    while True:
+        print('!!! LOOP NUMBER ' + str(loop_count) + ' !!!')
+        main()
+        loop_count = loop_count + 1
