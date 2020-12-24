@@ -5,7 +5,7 @@ from bountyhunter.db import insert_user_id as insert_user
 import requests
 
 
-updater = Updater(token='1477848508:AAHxRodMzP1sN3m1bFDHt0cnciPezR2Sm98', use_context=True)
+updater = Updater(token='yourtoken', use_context=True)
 dispatcher = updater.dispatcher
 
 
@@ -30,7 +30,7 @@ def notify_of_new_program(bounty_object):
     for asset in bounty_object['out_scope']:
         msg += '\t' + asset + '\n'
     for user in user_list:
-        send_text = 'https://api.telegram.org/bot1477848508:AAHxRodMzP1sN3m1bFDHt0cnciPezR2Sm98/sendMessage?chat_id=' + str(user) + '&parse_mode=HTML&text=' + msg
+        send_text = 'https://api.telegram.org/botyourtoken/sendMessage?chat_id=' + str(user) + '&parse_mode=HTML&text=' + msg
         response = requests.get(send_text)
         responses.append(response.json())
     return responses
