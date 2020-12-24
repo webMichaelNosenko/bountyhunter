@@ -10,19 +10,25 @@ def push_hash(handle, new_hash):
 def hash_assets(bounty_object, asset_type):
     """
     Turns all of the bug bounty program's assets of the same type into a hash string (md5) OR returns
-    '!eligible_domains:[NONE]', '!ineligible_domains:[NONE]' or '!out_scope:[NONE]'
+    '!eligible:[NONE]', '!ineligible:[NONE]' or '!out_scope:[NONE]'
 
     :param bounty_object: dict; the bounty data being used
-    :param asset_type: string; either 'eligible_domains', 'ineligible_domains' or 'out_scope'
+    :param asset_type: string; either 'eligible', 'ineligible' or 'out_scope'
     """
     assets_hash = ''
     if len(bounty_object[asset_type]) != 0:
-        assets_hash = assets_hash + ('!' + asset_type + ':[')
+        if asset_type != 'eligible':
+            assets_hash = assets_hash + ('!' + asset_type + ':[')
+        else:
+            assets_hash = assets_hash + (asset_type + ':[')
         for item in bounty_object[asset_type]:
             assets_hash = assets_hash + hashlib.md5(item.encode('utf-8')).hexdigest()
         assets_hash = assets_hash + ']'
     else:
-        assets_hash = assets_hash + ('!' + asset_type + ':[NONE]')
+        if asset_type != 'eligible':
+            assets_hash = assets_hash + ('!' + asset_type + ':[NONE]')
+        else:
+            assets_hash = assets_hash + (asset_type + ':[NONE]')
     return assets_hash
 
 
@@ -34,8 +40,8 @@ def make_hash(bounty_object):
 
     :param bounty_object: dict, keys are: {
             curr_handle: ' ',
-            eligible_domains: [ ],
-            ineligible_domains: [ ],
+            eligible: [ ],
+            ineligible: [ ],
             out_scope: [ ],
             offers_bounties: ' ',
             resolved_reports: ' ',
@@ -44,8 +50,8 @@ def make_hash(bounty_object):
     :return: bounty_hash: string; the hash for this bug bounty program
     """
     bounty_hash = ''
-    bounty_hash = bounty_hash + hash_assets(bounty_object, 'eligible_domains')
-    bounty_hash = bounty_hash + hash_assets(bounty_object, 'ineligible_domains')
+    bounty_hash = bounty_hash + hash_assets(bounty_object, 'eligible')
+    bounty_hash = bounty_hash + hash_assets(bounty_object, 'ineligible')
     bounty_hash = bounty_hash + hash_assets(bounty_object, 'out_scope')
     return bounty_hash
 

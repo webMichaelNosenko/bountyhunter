@@ -1,8 +1,10 @@
 from configparser import ConfigParser
 import psycopg2
+import pathlib
+import logging
 
 
-def config(filename='database.ini', section='postgresql'):
+def config(filename=str(pathlib.Path(__file__).parent.absolute()) + "/database.ini", section='postgresql'):
     parser = ConfigParser()
     parser.read(filename)
     db = {}
@@ -13,25 +15,6 @@ def config(filename='database.ini', section='postgresql'):
     else:
         raise Exception('Section {0} not found in {1} config file'.format(section, filename))
     return db
-
-
-def connect():
-    connection = None
-    try:
-        params = config()
-        print('Connecting to PostgreSQL database....')
-        connection = psycopg2.connect(**params)
-        cursor = connection.cursor()
-        print('Postgres database version:')
-        cursor.execute('SELECT version()')
-        db_version = cursor.fetchone()
-        print(db_version)
-        cursor.close()
-    except (Exception, psycopg2.DatabaseError) as error:
-        print(error)
-    finally:
-        if connection is not None:
-            return connection
 
 
 def exec_sql(sql):
@@ -96,10 +79,29 @@ def create_tables():
                 handle varchar(45) PRIMARY KEY,
                 hash_value TEXT NOT NULL
             );
+        """,
+        """
+            CREATE TABLE IF NOT EXISTS user_ids (
+                user_id TEXT NOT NULL PRIMARY KEY
+            );
         """
     )
     for command in commands:
         exec_sql(command)
+
+
+def get_user_table():
+    commands = (
+        f"""
+                SELECT user_id FROM user_ids;
+            """
+    )
+    user_table = []
+    results = fetch_all_results(commands)
+    if results is not None:
+        for found_id in results:
+            user_table.append(found_id[0])
+    return user_table
 
 
 def get_hash_table():
@@ -114,6 +116,17 @@ def get_hash_table():
         for hash_item in results:
             hash_table[hash_item[0]] = hash_item[1]
     return hash_table
+
+
+def insert_user_id(user_id):
+    commands = (
+        f"""
+            INSERT INTO user_ids (user_id)
+            VALUES ('{user_id}');
+        """
+    )
+    exec_sql(commands)
+    return 1
 
 
 def insert_hash(handle, hash_value):
@@ -136,14 +149,39 @@ def insert_new_program(bounty_object):
         """
     )
     exec_sql(commands)
+    print('Adding a new program...')
+    handle = bounty_object['handle']
+    for asset in bounty_object['eligible']:
+        insert_asset(handle, asset, 'eligible')
+        print('Eligible Asset ' + asset + ' has been added!')
+    for asset in bounty_object['ineligible']:
+        insert_asset(handle, asset, 'ineligible')
+        print('Ineligible Asset ' + asset + ' has been added!')
+    for asset in bounty_object['out_scope']:
+        insert_asset(handle, asset, 'out_scope')
+        print('Out of Scope Asset ' + asset + ' has been added!')
     return 1
 
 
-def insert_asset(bounty_object, asset_value, asset_type):
+def update_assets_of_type(bounty_object, asset_type):
+    print('*** ' + asset_type + ' domains changed!')
+    changes = find_differences(bounty_object, asset_type)
+    for change in changes['to_remove']:
+        delete_asset(bounty_object['handle'], change, asset_type)
+        print('Asset ' + change + ' has been deleted!')
+        logging.info(f'{bounty_object["handle"]}`s {asset_type} domain {change} has been deleted')
+    for change in changes['to_add']:
+        insert_asset(bounty_object['handle'], change, asset_type)
+        print('Asset ' + change + ' has been added!')
+        logging.info(f'{bounty_object["handle"]}`s {asset_type} domain {change} has been added')
+    return changes
+
+
+def insert_asset(handle, asset_value, asset_type):
     commands = (
         f"""
             INSERT INTO domains (handle, asset_value, asset_type)
-            VALUES ('{bounty_object['handle']}', '{asset_value}', 
+            VALUES ('{handle}', '{asset_value}', 
             '{asset_type}');
         """
     )
@@ -151,22 +189,22 @@ def insert_asset(bounty_object, asset_value, asset_type):
     return 1
 
 
-def get_assets(bounty_object, asset_type):
+def get_assets(handle, asset_type):
     commands = (
         f"""
             SELECT asset_value FROM domains 
-            WHERE handle='{bounty_object['handle']}' AND asset_type='{asset_type}'
+            WHERE handle='{handle}' AND asset_type='{asset_type}'
         """
     )
     results = fetch_all_results(commands)
     return results
 
 
-def delete_asset(bounty_object, asset_value, asset_type):
+def delete_asset(handle, asset_value, asset_type):
     commands = (
         f"""
             DELETE FROM domains
-            WHERE handle='{bounty_object['handle']}' AND asset_value='{asset_value}' 
+            WHERE handle='{handle}' AND asset_value='{asset_value}' 
             AND asset_type='{asset_type}'
         """
     )
@@ -174,28 +212,28 @@ def delete_asset(bounty_object, asset_value, asset_type):
     return 1
 
 
-def delete_program(bounty_object):
+def delete_program(handle):
     exec_sql(
         f"""
             DELETE FROM domains
-            WHERE handle='{bounty_object['handle']}';
+            WHERE handle='{handle}';
         """
     )
-    delete_hash(bounty_object)
+    delete_hash(handle)
     exec_sql(
         f"""
             DELETE FROM bounty_programs
-            WHERE handle='{bounty_object['handle']}';
+            WHERE handle='{handle}';
         """
     )
     return 1
 
 
-def delete_hash(bounty_object):
+def delete_hash(handle):
     commands = (
         f"""
             DELETE FROM hash_table 
-            WHERE handle='{bounty_object['handle']}'
+            WHERE handle='{handle}'
         """
     )
     exec_sql(commands)
@@ -209,6 +247,10 @@ def find_differences(bounty_object, asset_type):
     }
     old_assets = get_assets(bounty_object, asset_type)
     new_assets = bounty_object[asset_type]
+    if old_assets is None:
+        old_assets = ()
+    if new_assets is None:
+        new_assets = ()
     for asset in new_assets:
         if asset not in old_assets:
             changes['to_add'].append(asset)

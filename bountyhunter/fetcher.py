@@ -23,6 +23,7 @@ def check_validity(value):
 
 
 async def fetch_page(handle):
+    #   ADD HANDLING FOR 404 ERRORS
     browser = await pyppeteer.launch(headless=True, args=['--no-sandbox'])
     page = await browser.newPage()
     await page.setViewport({'width': 1912, 'height': 933})
@@ -94,8 +95,8 @@ async def look_for_scope(handle):
 
     return {
         'handle': handle,
-        'eligible_domains': el_domains,
-        'ineligible_domains': inel_domains,
+        'eligible': el_domains,
+        'ineligible': inel_domains,
         'out_scope': out_of_scope,
         'offers_bounties': True if len(el_domains) > 0 else False,
         'resolved_reports': 0 if resolved_reports == 0 else check_validity(resolved_reports),
