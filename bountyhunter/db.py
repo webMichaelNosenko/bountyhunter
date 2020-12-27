@@ -4,7 +4,7 @@ import pathlib
 import logging
 
 
-def config(filename=str(pathlib.Path(__file__).parent.absolute()) + "/database.ini", section='postgresql'):
+def config(filename=str(pathlib.Path(__file__).parent.absolute()) + "/config.ini", section='postgresql'):
     parser = ConfigParser()
     parser.read(filename)
     db = {}
@@ -82,7 +82,8 @@ def create_tables():
         """,
         """
             CREATE TABLE IF NOT EXISTS user_ids (
-                user_id TEXT NOT NULL PRIMARY KEY
+                user_id TEXT NOT NULL PRIMARY KEY,
+                filtered INT DEFAULT 0
             );
         """
     )
@@ -93,14 +94,14 @@ def create_tables():
 def get_user_table():
     commands = (
         f"""
-                SELECT user_id FROM user_ids;
+                SELECT user_id, filtered FROM user_ids;
             """
     )
     user_table = []
     results = fetch_all_results(commands)
     if results is not None:
         for found_id in results:
-            user_table.append(found_id[0])
+            user_table.append([found_id[0], found_id[1]])
     return user_table
 
 
@@ -121,8 +122,38 @@ def get_hash_table():
 def insert_user_id(user_id):
     commands = (
         f"""
+            SELECT user_id FROM user_ids
+            WHERE user_id='{user_id}';
+        """,
+        f"""
             INSERT INTO user_ids (user_id)
             VALUES ('{user_id}');
+        """
+    )
+    found = fetch_all_results(commands[0])
+    if len(found) == 0:
+        exec_sql(commands[1])
+        return 1
+    else:
+        return 0
+
+
+def delete_user_id(user_id):
+    commands = f"""
+            DELETE FROM user_ids
+            WHERE user_id='{user_id}';
+        """
+
+    exec_sql(commands)
+    return 1
+
+
+def change_filtered(user_id, value):
+    commands = (
+        f"""
+            UPDATE user_ids 
+            SET filtered = {value} 
+            WHERE user_id = '{user_id}';
         """
     )
     exec_sql(commands)
@@ -164,6 +195,8 @@ def insert_new_program(bounty_object):
 
 
 def update_assets_of_type(bounty_object, asset_type):
+    if bounty_object['handle'] == 'watson_group':
+        print('boop\n')
     print('*** ' + asset_type + ' domains changed!')
     changes = find_differences(bounty_object, asset_type)
     for change in changes['to_remove']:
@@ -190,6 +223,8 @@ def insert_asset(handle, asset_value, asset_type):
 
 
 def get_assets(handle, asset_type):
+    if handle == 'watson_group':
+        print('boop\n')
     commands = (
         f"""
             SELECT asset_value FROM domains 
@@ -241,11 +276,16 @@ def delete_hash(handle):
 
 
 def find_differences(bounty_object, asset_type):
+    if bounty_object['handle'] == 'watson_group':
+        print('boop\n')
     changes = {
         'to_add': [],
         'to_remove': []
     }
-    old_assets = get_assets(bounty_object, asset_type)
+    old_assets = []
+    old_assets_tuples = get_assets(bounty_object['handle'], asset_type)
+    for asset in old_assets_tuples:
+        old_assets.append(asset[0])
     new_assets = bounty_object[asset_type]
     if old_assets is None:
         old_assets = ()
