@@ -25,9 +25,11 @@ def check_validity(value):
 
 async def fetch_page(handle):
     #   ADD HANDLING FOR 404 ERRORS
-    browser = await pyppeteer.launch(headless=True, args=['--no-sandbox'])
     pyppeteer_logger = logging.getLogger('pyppeteer')
     pyppeteer_logger.setLevel(logging.WARNING)
+    browser = await pyppeteer.launch(headless=True, args=['--no-sandbox'], handleSIGINT=False,
+                                     handleSIGTERM=False,
+                                     handleSIGHUP=False)
     page = await browser.newPage()
     await page.setViewport({'width': 1912, 'height': 933})
     try:
@@ -35,7 +37,7 @@ async def fetch_page(handle):
     except:
         print('Could not access the page')
         return ' '
-#    await page.goto('https://hackerone.com/watson_group?type=team', {'waitUntil': 'networkidle0'})
+    # await page.goto('https://hackerone.com/watson_group?type=team', {'waitUntil': 'networkidle0'})
     if handle != 'oooooooo':
         inner_text = await page.evaluate("() => {let my_text = ' ';"
                                          "let cards = document.querySelectorAll('.card__content');"
@@ -392,7 +394,7 @@ async def look_for_scope(handle):
         if new_asset != '':
             filtered_out_scope.append(new_asset.groups()[0])
     domains = domains_pattern.findall(inner_text)
-# ([^ \t\n]+?[.a-zA-Z0-9:/*-]*[.]+[.a-zA-Z0-9:/*-]*)
+    # ([^ \t\n]+?[.a-zA-Z0-9:/*-]*[.]+[.a-zA-Z0-9:/*-]*)
     el_domains = []
     inel_domains = []
     for x in range(0, len(domains)):
