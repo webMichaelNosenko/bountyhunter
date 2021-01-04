@@ -24,7 +24,6 @@ def check_validity(value):
 
 
 async def fetch_page(handle):
-    #   ADD HANDLING FOR 404 ERRORS
     pyppeteer_logger = logging.getLogger('pyppeteer')
     pyppeteer_logger.setLevel(logging.WARNING)
     browser = await pyppeteer.launch(headless=True, args=['--no-sandbox'], handleSIGINT=False,
@@ -35,8 +34,7 @@ async def fetch_page(handle):
     try:
         await page.goto('https://hackerone.com/' + handle + '?type=team', {'waitUntil': 'networkidle0'})
     except:
-        print('Could not access the page')
-        return ' '
+        raise TimeoutError
     # await page.goto('https://hackerone.com/watson_group?type=team', {'waitUntil': 'networkidle0'})
     if handle != 'oooooooo':
         inner_text = await page.evaluate("() => {let my_text = ' ';"
