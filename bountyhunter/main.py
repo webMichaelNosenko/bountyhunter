@@ -8,6 +8,7 @@ import bountyhunter.tgbot as tgbot
 from bountyhunter.fetcher import look_for_scope
 import threading
 import queue
+import os
 from random import randint
 from time import sleep
 
@@ -21,7 +22,7 @@ class BountyThread (threading.Thread):
 
     def run(self):
         print("Starting " + self.name)
-        process_program(self, self.queue_items)
+        process_program(self.queue_items)
         print("Exiting " + self.name)
 
 
@@ -37,7 +38,7 @@ program_counter = 0
 exitFlag = 0
 
 
-def process_program(calling_thread, queue_items):
+def process_program(queue_items):
     while not exitFlag:
         queue_lock.acquire()
         if not queue_items.empty():
@@ -103,6 +104,7 @@ def process_program(calling_thread, queue_items):
 
 
 if __name__ == '__main__':
+
     loop_count = 0
     logging.basicConfig(filename='events.log', level=logging.DEBUG)
     db.create_tables()
@@ -125,7 +127,7 @@ if __name__ == '__main__':
             bounty_queue.put(result)
         queue_lock.release()
 
-        thread_list = ['Thread 0', 'Thread 1', 'Thread 2', 'Thread 3', 'Thread 4', 'Thread 5']
+        thread_list = ['Thread 0', 'Thread 1']
         threads = []
         loop_counter = 0
         for thread_it in thread_list:
