@@ -95,11 +95,11 @@ def notify_of_change(handle, changes, asset_type):
     msg += "Assets of type " + asset_type.upper() + ":\n"
     for change in changes['to_remove']:
         msg += str(' --- ' + change + '\n')
-    msg += "have been DELETED;\n========"
+    msg += "\nhave been DELETED;\n========"
     for change in changes['to_add']:
         msg += str(' >>> ' + change + '\n')
-    msg += "have been ADDED"
-    msg += '------------\n(go to https://hackerone.com/' + handle + '?type=team for more info)'
+    msg += "\nhave been ADDED"
+    msg += '\n------------\n(go to https://hackerone.com/' + handle + '?type=team for more info)'
     for user in user_list:
         send_text = 'https://api.telegram.org/bot1477848508:AAHxRodMzP1sN3m1bFDHt0cnciPezR2Sm98/sendMessage?chat_id=' + str(user[0]) + '&parse_mode=HTML&text=' + msg
         response = requests.get(send_text)
