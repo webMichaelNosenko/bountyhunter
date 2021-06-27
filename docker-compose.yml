@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  db:
+    build:
+ #     dockerfile: ./db/Dockerfile
+      context: ./db
+    ports:
+      - 5432:5432
+
+  app:
+    build:
+ #     dockerfile: ./bountyhunter/Dockerfile
+      context: ./bountyhunter
+    depends_on:
+      - db
+    ports:
+      - 9090:80

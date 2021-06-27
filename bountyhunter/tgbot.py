@@ -1,9 +1,10 @@
 from telegram.ext import Updater
 from telegram.ext import CommandHandler
-from bountyhunter.db import get_user_table as get_users
-from bountyhunter.db import insert_user_id as insert_user
-from bountyhunter.db import delete_user_id as delete_user
-from bountyhunter.db import change_filtered
+#from bountyhunter.db import get_user_table as get_users
+from db import get_user_table as get_users
+from db import insert_user_id as insert_user
+from db import delete_user_id as delete_user
+from db import change_filtered
 import requests
 from configparser import ConfigParser
 import pathlib
