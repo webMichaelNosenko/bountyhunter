@@ -2,10 +2,11 @@ import requests
 import json
 import asyncio
 import logging
-import bountyhunter.hashtable as hashtable
-import bountyhunter.db as db
-import bountyhunter.tgbot as tgbot
-from bountyhunter.fetcher import look_for_scope
+#import bountyhunter.hashtable as hashtable
+import hashtable as hashtable
+import db as db
+import tgbot as tgbot
+from fetcher import look_for_scope
 import threading
 import queue
 import os
